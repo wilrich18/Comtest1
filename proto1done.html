@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Community App</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .container { display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .hidden { display: none; }
+        .profile { border: 1px solid #ccc; padding: 10px; margin: 10px; text-align: center; }
+        #community-list li { cursor: pointer; }
+        #rating-buttons button { margin: 5px; }
+        .profile img { width: 100px; height: 100px; object-fit: cover; }
+        #home-button { display: none; }
+        #subscriptions-list { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <button id="home-button" onclick="showHomeScreen()">Home</button>
+        <button onclick="showViewProfile()">View Profile</button>
+        <button onclick="showCommunities()">View Communities</button>
+        <button onclick="showCreateCommunity()">Create Community</button>
+
+        <!-- Home Screen -->
+        <div id="home-screen">
+            <h2>Bookmarked Posts</h2>
+            <div id="post-container"></div>
+        </div>
+
+        <!-- View Profile Screen -->
+        <div id="view-profile-screen" class="hidden">
+            <h2>Your Profile</h2>
+            <img id="view-profile-pic" src="default-profile.jpg" alt="Profile Picture" />
+            <h3 id="view-profile-name">Your Name</h3>
+            <button onclick="showYourProfile()">Edit Profile</button>
+            <button onclick="showBookmarkedCommunities()">Bookmarked Communities</button>
+            <button onclick="showSubscriptions()">View Subscriptions</button>
+        </div>
+
+        <!-- View Communities Screen -->
+        <div id="view-communities-screen" class="hidden">
+            <h2>Communities</h2>
+            <input type="text" id="search-community" placeholder="Search Communities" onkeyup="searchCommunity()">
+            <ul id="community-list"></ul>
+            <button onclick="showCreateCommunity()">Create Community</button>
+        </div>
+
+        <!-- Create Community Screen -->
+        <div id="create-community-screen" class="hidden">
+            <h2>Create Community</h2>
+            <input type="text" id="community-name" placeholder="Community Name" />
+            <textarea id="community-description" placeholder="Community Description"></textarea>
+            <input type="file" id="community-image" />
+            <button onclick="createCommunity()">Create</button>
+            <button onclick="cancelCreateCommunity()">Cancel</button>
+        </div>
+
+        <!-- Community Profiles Screen -->
+        <div id="community-profiles-screen" class="hidden">
+            <h2>Community Profiles</h2>
+            <button onclick="cancelCommunityProfiles()">Back to Communities</button>
+            <div id="profile-container"></div>
+            <button id="bookmark-button" class="hidden" onclick="bookmarkCommunity()">Bookmark Community</button>
+        </div>
+
+        <!-- Bookmarked Communities Screen -->
+        <div id="bookmarked-communities-screen" class="hidden">
+            <h2>Bookmarked Communities</h2>
+            <ul id="bookmarked-community-list"></ul>
+            <button onclick="cancelSubscriptions()">Back to Profile</button>
+        </div>
+
+        <!-- Your Profile Screen -->
+        <div id="view-your-profile-screen" class="hidden">
+            <h2>Edit Your Profile</h2>
+            <input type="text" id="edit-name" placeholder="Name" />
+            <input type="file" id="edit-picture" />
+            <button onclick="saveProfile()">Save</button>
+            <button onclick="cancelView()">Cancel</button>
+        </div>
+
+        <!-- Subscriptions List Screen -->
+        <div id="subscriptions-list" class="hidden">
+            <h2>Your Subscriptions</h2>
+            <ul id="subscription-list"></ul>
+            <button onclick="cancelSubscriptions()">Back to Profile</button>
+        </div>
+    </div>
+
+    <script>
+        const profiles = [
+            { name: "John Doe", rating: [3, 4, 5], image: "profile1.jpg" },
+            { name: "Jane Smith", rating: [2, 4, 5], image: "profile2.jpg" },
+            { name: "Alice Johnson", rating: [1, 3, 4], image: "profile3.jpg" }
+        ];
+
+        let communities = [];
+        let bookmarkedCommunities = [];
+        let currentCommunityIndex = null;
+        let currentPostIndex = 0;
+        let subscribedProfiles = [];
+
+        function showHomeScreen() {
+            hideAll();
+            document.getElementById('home-screen').style.display = 'block';
+            document.getElementById('home-button').style.display = 'none';
+            renderBookmarkedPosts();
+        }
+
+        function showViewProfile() {
+            hideAll();
+            document.getElementById('view-profile-screen').style.display = 'block';
+            document.getElementById('home-button').style.display = 'block';
+        }
+
+        function showCommunities() {
+            hideAll();
+            document.getElementById('view-communities-screen').style.display = 'block';
+            renderCommunityList();
+            document.getElementById('home-button').style.display = 'block';
+        }
+
+        function showCreateCommunity() {
+            hideAll();
+            document.getElementById('create-community-screen').style.display = 'block';
+            document.getElementById('home-button').style.display = 'block';
+        }
+
+        function createCommunity() {
+            const name = document.getElementById('community-name').value;
+            const description = document.getElementById('community-description').value;
+            const image = document.getElementById('community-image').files[0];
+            
+            if (!name || !description) {
+                alert('Please fill in all fields.');
+                return;
+            }
+            
+            const communityImage = image ? URL.createObjectURL(image) : '';
+            communities.push({ name, description, image: communityImage });
+            alert('Community created successfully!');
+            showCommunities();
+        }
+
+        function cancelCreateCommunity() {
+            showCommunities();
+        }
+
+        function searchCommunity() {
+            const searchQuery = document.getElementById('search-community').value.toLowerCase();
+            const filteredCommunities = communities.filter(community => community.name.toLowerCase().includes(searchQuery));
+            renderCommunityList(filteredCommunities);
+        }
+
+        function renderCommunityList(filteredCommunities = communities) {
+            const communityList = document.getElementById('community-list');
+            communityList.innerHTML = '';
+            filteredCommunities.slice(0, 5).forEach((community, index) => {
+                const listItem = document.createElement('li');
+                listItem.textContent = community.name;
+                listItem.onclick = () => showCommunityProfiles(index);
+                communityList.appendChild(listItem);
+            });
+        }
+
+        function showCommunityProfiles(index) {
+            currentCommunityIndex = index;
+            currentPostIndex = 0;
+            hideAll();
+            document.getElementById('community-profiles-screen').style.display = 'block';
+            renderProfiles();
+            document.getElementById('bookmark-button').classList.remove('hidden');
+        }
+
+        function renderProfiles() {
+            const profileContainer = document.getElementById('profile-container');
+            profileContainer.innerHTML = '';
+            const profilesToShow = profiles; // Adjust to filter by community if necessary
+
+            if (profilesToShow.length > 0 && profilesToShow[currentPostIndex]) {
+                const profile = profilesToShow[currentPostIndex];
+                const profileElement = document.createElement('div');
+                profileElement.className = 'profile';
+                profileElement.innerHTML = `
+                    <img src="${profile.image}" alt="${profile.name}">
+                    <h3>${profile.name}</h3>
+                    <p>Community: ${communities[currentCommunityIndex].name}</p>
+                    <p>Average Rating: <span id="profile-rating">${averageRating(profile.rating)}</span></p>
+                    <p>Number of Ratings: ${profile.rating.length}</p>
+                    <div id="rating-buttons">
+                        <button onclick="rateProfile(1)">Rate 1</button>
+                        <button onclick="rateProfile(2)">Rate 2</button>
+                        <button onclick="rateProfile(3)">Rate 3</button>
+                        <button onclick="rateProfile(4)">Rate 4</button>
+                        <button onclick="rateProfile(5)">Rate 5</button>
+                    </div>
+                    <button onclick="toggleSubscription('${profile.name}')">
+                        ${subscribedProfiles.some(p => p.name === profile.name) ? 'Unsubscribe' : 'Subscribe'}
+                    </button>
+                `;
+                profileContainer.appendChild(profileElement);
+            }
+        }
+
+        function averageRating(ratings) {
+            if (ratings.length === 0) return 0;
+            const total = ratings.reduce((sum, rating) => sum + rating, 0);
+            return (total / ratings.length).toFixed(1);
+        }
+
+        function rateProfile(rating) {
+            if (currentCommunityIndex !== null) {
+                const profilesToShow = profiles; // Adjust to filter by community if necessary
+                if (profilesToShow[currentPostIndex]) {
+                    profilesToShow[currentPostIndex].rating.push(rating);
+                    updateProfileRatings();
+                    currentPostIndex = (currentPostIndex + 1) % profilesToShow.length;
+                    renderProfiles();
+                }
+            }
+        }
+
+        function updateProfileRatings() {
+            const profile = profiles[currentPostIndex];
+            document.getElementById('profile-rating').textContent = averageRating(profile.rating);
+        }
+
+        function bookmarkCommunity() {
+            const community = communities[currentCommunityIndex];
+            if (community) {
+                bookmarkedCommunities.push(community);
+                alert('Community bookmarked successfully!');
+            }
+        }
+
+        function showBookmarkedCommunities() {
+            hideAll();
+            document.getElementById('bookmarked-communities-screen').style.display = 'block';
+            renderBookmarkedCommunities();
+            document.getElementById('home-button').style.display = 'block';
+        }
+
+        function renderBookmarkedCommunities() {
+            const bookmarkedCommunityList = document.getElementById('bookmarked-community-list');
+            bookmarkedCommunityList.innerHTML = '';
+            bookmarkedCommunities.forEach((community, index) => {
+                const listItem = document.createElement('li');
+                listItem.textContent = community.name;
+
+                // Add unbookmark button
+                const unbookmarkButton = document.createElement('button');
+                unbookmarkButton.textContent = 'Unbookmark';
+                unbookmarkButton.onclick = () => unbookmarkCommunity(index);
+                listItem.appendChild(unbookmarkButton);
+
+                // Add a link to view profiles within the bookmarked community
+                const viewProfilesButton = document.createElement('button');
+                viewProfilesButton.textContent = 'View Profiles';
+                viewProfilesButton.onclick = () => showCommunityProfiles(index);
+                listItem.appendChild(viewProfilesButton);
+
+                bookmarkedCommunityList.appendChild(listItem);
+            });
+        }
+
+        function unbookmarkCommunity(index) {
+            if (index > -1 && index < bookmarkedCommunities.length) {
+                bookmarkedCommunities.splice(index, 1);
+                alert('Community unbookmarked successfully!');
+                renderBookmarkedCommunities();
+            }
+        }
+
+        function renderBookmarkedPosts() {
+            if (bookmarkedCommunities.length === 0) {
+                document.getElementById('post-container').innerHTML = 'No bookmarked posts available.';
+                return;
+            }
+
+            // Randomize the bookmarked communities
+            const shuffledCommunities = [...bookmarkedCommunities].sort(() => Math.random() - 0.5);
+            const currentCommunity = shuffledCommunities[currentPostIndex % shuffledCommunities.length];
+            const profile = profiles[Math.floor(Math.random() * profiles.length)]; // Random profile for demo
+
+            const postContainer = document.getElementById('post-container');
+            postContainer.innerHTML = `
+                <div class="profile">
+                    <img src="${profile.image}" alt="${profile.name}">
+                    <h3>${profile.name}</h3>
+                    <p>Community: ${currentCommunity.name}</p>
+                    <p>Average Rating: <span id="post-rating">${averageRating(profile.rating)}</span></p>
+                    <p>Number of Ratings: ${profile.rating.length}</p>
+                    <div id="rating-buttons">
+                        <button onclick="ratePost(1)">Rate 1</button>
+                        <button onclick="ratePost(2)">Rate 2</button>
+                        <button onclick="ratePost(3)">Rate 3</button>
+                        <button onclick="ratePost(4)">Rate 4</button>
+                        <button onclick="ratePost(5)">Rate 5</button>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('home-button').style.display = 'block';
+        }
+
+        function ratePost(rating) {
+            if (bookmarkedCommunities.length === 0) return;
+            const currentCommunity = bookmarkedCommunities[currentPostIndex % bookmarkedCommunities.length];
+            const profile = profiles[Math.floor(Math.random() * profiles.length)]; // Random profile for demo
+            profile.rating.push(rating);
+            updatePostRatings();
+            currentPostIndex++;
+            renderBookmarkedPosts();
+        }
+
+        function updatePostRatings() {
+            const postRating = document.getElementById('post-rating');
+            const profile = profiles[Math.floor(Math.random() * profiles.length)]; // Random profile for demo
+            postRating.textContent = averageRating(profile.rating);
+        }
+
+        function showYourProfile() {
+            hideAll();
+            document.getElementById('view-your-profile-screen').style.display = 'block';
+            document.getElementById('home-button').style.display = 'block';
+        }
+
+        function saveProfile() {
+            const name = document.getElementById('edit-name').value;
+            const picture = document.getElementById('edit-picture').files[0];
+            if (name) {
+                document.getElementById('view-profile-name').textContent = name;
+            }
+            if (picture) {
+                document.getElementById('view-profile-pic').src = URL.createObjectURL(picture);
+            }
+            alert('Profile updated successfully!');
+        }
+
+        function cancelView() {
+            showViewProfile();
+        }
+
+        function showSubscriptions() {
+            hideAll();
+            document.getElementById('subscriptions-list').style.display = 'block';
+            renderSubscriptions();
+            document.getElementById('home-button').style.display = 'block';
+        }
+
+        function renderSubscriptions() {
+            const subscriptionList = document.getElementById('subscription-list');
+            subscriptionList.innerHTML = '';
+            subscribedProfiles.forEach(profile => {
+                const listItem = document.createElement('li');
+                listItem.textContent = profile.name;
+
+                // Add a button to view the profile
+                const viewProfileButton = document.createElement('button');
+                viewProfileButton.textContent = 'View Profile';
+                viewProfileButton.onclick = () => viewProfileDetails(profile);
+                listItem.appendChild(viewProfileButton);
+
+                subscriptionList.appendChild(listItem);
+            });
+        }
+
+        function viewProfileDetails(profile) {
+            hideAll();
+            const profileContainer = document.getElementById('profile-container');
+            profileContainer.innerHTML = `
+                <div class="profile">
+                    <img src="${profile.image}" alt="${profile.name}">
+                    <h3>${profile.name}</h3>
+                    <p>Average Rating: <span>${averageRating(profile.rating)}</span></p>
+                    <p>Number of Ratings: ${profile.rating.length}</p>
+                </div>
+            `;
+            document.getElementById('profile-container').style.display = 'block';
+        }
+
+        function toggleSubscription(profileName) {
+            const profile = profiles.find(p => p.name === profileName);
+            if (profile) {
+                const index = subscribedProfiles.findIndex(p => p.name === profileName);
+                if (index > -1) {
+                    // Unsubscribe
+                    subscribedProfiles.splice(index, 1);
+                } else {
+                    // Subscribe
+                    subscribedProfiles.push(profile);
+                }
+                renderProfiles();
+            }
+        }
+
+        function cancelSubscriptions() {
+            showViewProfile();
+        }
+
+        function hideAll() {
+            document.getElementById('home-screen').style.display = 'none';
+            document.getElementById('view-profile-screen').style.display = 'none';
+            document.getElementById('view-communities-screen').style.display = 'none';
+            document.getElementById('create-community-screen').style.display = 'none';
+            document.getElementById('community-profiles-screen').style.display = 'none';
+            document.getElementById('bookmarked-communities-screen').style.display = 'none';
+            document.getElementById('view-your-profile-screen').style.display = 'none';
+            document.getElementById('subscriptions-list').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
